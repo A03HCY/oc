@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Identity</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            margin: 0;
+            -webkit-text-size-adjust: none;
+        }
+
+        :not(:defined) {
+            display: none;
+        }
+
+        #appbar {
+            z-index: 1;
+        }
+
+        .background {
+            transition: background-color 0.3s;
+            background-color: rgba(255, 255, 255, 0);
+        }
+
+        .text-field-full {
+            width: auto;
+            display: grid;
+        }
+
+        .card-full {
+            display: block;
+            max-width: none
+        }
+
+        s-button {
+            border-radius: 4px;
+        }
+
+        s-page {
+            display: flex;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        .text-field-full {
+            width: auto;
+            display: grid;
+            margin-inline: 16px;
+        }
+
+        .load-section {
+            margin: 16px;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px dashed #ccc;
+        }
+
+        .load-section h3 {
+            margin-top: 0;
+        }
+
+        .file-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+        }
+
+        .url-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        #file-display {
+            margin-top: 16px;
+            width: 100%;
+            word-break: break-all;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <s-page theme="auto">
+        <s-appbar>
+            <!--左侧菜单按钮-->
+            <s-icon-button id="back-btn" slot="navigation">
+                <s-icon name="arrow_back"></s-icon>
+            </s-icon-button>
+            <!--标题-->
+            <div slot="headline"> 加载人格 </div>
+        </s-appbar>
+
+        <s-scroll-view>
+            <!-- 通过JSON文件上传 -->
+            <div class="load-section">
+                <h3>通过JSON文件上传</h3>
+                <div class="file-upload">
+                    <s-button id="file-select-btn" type="filled">选择文件</s-button>
+                    <input type="file" id="file-input" accept=".json" style="display: none;">
+                    <div id="file-display">未选择文件</div>
+                </div>
+                <div class="button-row">
+                    <s-button id="file-load-btn" type="filled-tonal" disabled>加载文件</s-button>
+                </div>
+            </div>
+
+            <!-- 通过URL加载 -->
+            <div class="load-section">
+                <h3>通过URL加载</h3>
+                <div class="url-section">
+                    <s-text-field id="url-input" class="text-field-full" label="JSON URL" hint="输入包含Persona的JSON文件URL"></s-text-field>
+                    <div class="button-row">
+                        <s-button id="url-load-btn" type="filled-tonal">获取并加载</s-button>
+                    </div>
+                </div>
+            </div>
+        </s-scroll-view>
+    </s-page>
+</body>
+
+<script src="https://unpkg.com/sober@1.1.0/dist/sober.min.js"></script>
+<script src="./data.js"></script>
+<script src="./load.js"></script>
+
+</html>

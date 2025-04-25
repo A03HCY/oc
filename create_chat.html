@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Identity</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            margin: 0;
+            -webkit-text-size-adjust: none;
+        }
+
+        :not(:defined) {
+            display: none;
+        }
+
+        #appbar {
+            z-index: 1;
+        }
+
+        .background {
+            transition: background-color 0.3s;
+            background-color: rgba(255, 255, 255, 0);
+        }
+
+        .text-field-full {
+            width: auto;
+            display: grid;
+        }
+
+        .card-full {
+            display: block;
+            max-width: none
+        }
+
+        s-button {
+            border-radius: 4px;
+        }
+
+        s-page {
+            display: flex;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        s-scroll-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .text-field-full {
+            width: auto;
+            display: grid;
+            margin-inline: 16px;
+        }
+
+        .avatar-full {
+            margin-top: 16px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .picker-full {
+            display: grid;
+            margin-inline: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <s-page theme="auto">
+        <s-appbar>
+            <!--左侧菜单按钮-->
+            <s-icon-button slot="navigation">
+                <s-icon name="arrow_back"></s-icon>
+            </s-icon-button>
+            <!--标题-->
+            <div slot="headline"> 创建聊天 </div>
+        </s-appbar>
+
+        <s-scroll-view>
+            <s-text-field id="name" class="text-field-full" label="聊天名称" style="margin-top: 16px;"></s-text-field>
+            <s-picker id="persona" class="picker-full" label="人格">
+            </s-picker>
+            <s-picker id="mode" class="picker-full" label="模型">
+            </s-picker>
+            <s-button style="display: flex; margin-inline: 16px;"> 完成 </s-button>
+        </s-scroll-view>
+
+    </s-page>
+</body>
+
+<script src="https://unpkg.com/sober@1.1.0/dist/sober.min.js"></script>
+<script src="./data.js"></script>
+<script src="./create_chat.js"></script>
+
+</html>

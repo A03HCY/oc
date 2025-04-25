@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport"
+        content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Identity</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            margin: 0;
+            -webkit-text-size-adjust: none;
+        }
+
+        :not(:defined) {
+            display: none;
+        }
+
+        #appbar {
+            z-index: 1;
+        }
+
+        .background {
+            transition: background-color 0.3s;
+            background-color: rgba(255, 255, 255, 0);
+        }
+
+        .text-field-full {
+            width: auto;
+            display: grid;
+        }
+
+        .card-full {
+            display: block;
+            max-width: none
+        }
+
+        s-button {
+            border-radius: 4px;
+        }
+
+        s-page {
+            display: flex;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        s-scroll-view {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .text-field-full {
+            width: auto;
+            display: grid;
+            margin-inline: 16px;
+        }
+
+        .avatar-full {
+            margin-top: 16px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+    </style>
+</head>
+
+<body>
+    <s-page theme="auto">
+        <s-appbar>
+            <!--左侧菜单按钮-->
+            <s-icon-button slot="navigation">
+                <s-icon name="arrow_back"></s-icon>
+            </s-icon-button>
+            <!--标题-->
+            <div slot="headline">  </div>
+            
+            <s-icon-button id="delete-btn" slot="action">
+                <s-icon>
+                    <svg viewBox="0 -960 960 960">
+                        <path d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z"></path>
+                    </svg>
+                </s-icon>
+            </s-icon-button>
+            <s-icon-button id="save-btn" slot="action">
+                <s-icon name="done"></s-icon>
+            </s-icon-button>
+        </s-appbar>
+
+        <s-scroll-view>
+            <div class="avatar-full">
+                <s-avatar id="avatar" style="width: 100px; height: 100px;"></s-avatar>
+                <s-button type="filled-tonal" style="margin-top: 16px;"> 更换头像 </s-button>
+            </div>
+            <s-text-field id="name" class="text-field-full" label="人格名称" style="margin-top: 16px;"></s-text-field>
+            <s-text-field id="description" class="text-field-full" label="人格描述" multiLine="true"
+                style="margin-bottom: 16px;min-height: 100px;"></s-text-field>
+        </s-scroll-view>
+
+    </s-page>
+</body>
+
+<script src="https://unpkg.com/sober@1.1.0/dist/sober.min.js"></script>
+<script src="./data.js"></script>
+<script src="./persona.js"></script>
+
+</html>
