@@ -184,15 +184,13 @@ async function loadChatList() {
     }
 }
 
-// 加载Profile资料
+// 加载Profile资料 - 只负责加载数据，不绑定事件
 async function loadProfile() {
     try {
         // 获取Profile元素
         const profileAvatar = document.getElementById('profile-avatar');
         const profileName = document.getElementById('profile-name');
         const profileDescription = document.getElementById('description');
-        const saveButton = document.getElementById('save-profile-btn');
-        const changeAvatarButton = document.getElementById('change-avatar-btn');
 
         // 从数据库获取Profile
         const profile = await DB.getProfile();
@@ -203,49 +201,62 @@ async function loadProfile() {
             if (profile.description) profileDescription.value = profile.description;
             if (profile.avatar) profileAvatar.src = profile.avatar;
         }
-
-        // 添加更换头像按钮点击事件
-        if (changeAvatarButton) {
-            changeAvatarButton.addEventListener('click', async () => {
-                try {
-                    // 方式1：选择本地图片
-                    const base64 = await DB.selectAndConvertImage();
-                    if (base64) {
-                        profileAvatar.src = base64;
-                    }
-                } catch (error) {
-                    console.error('选择头像失败:', error);
-                    // 方式2：生成随机颜色头像作为备选
-                    const randomAvatar = DB.generateColorAvatar(profileName.value || '');
-                    profileAvatar.src = randomAvatar;
-                }
-            });
-        }
-
-        // 添加保存按钮点击事件
-        if (saveButton) {
-            saveButton.addEventListener('click', async () => {
-                try {
-                    const name = profileName.value.trim();
-                    const description = profileDescription.value.trim();
-
-                    // 保存到数据库
-                    await DB.saveProfile({
-                        name: name,
-                        description: description,
-                        avatar: profileAvatar.src || null,
-                        updated: new Date()
-                    });
-
-                    alert('个人资料已保存');
-                } catch (error) {
-                    console.error('保存个人资料失败:', error);
-                    alert('保存失败: ' + error.message);
-                }
-            });
-        }
     } catch (error) {
         console.error('加载个人资料失败:', error);
+    }
+}
+
+// 单独设置Profile事件监听器，避免重复绑定
+function setupProfileEventListeners() {
+    // 标记函数已执行，避免重复调用
+    if (setupProfileEventListeners.hasRun) return;
+    setupProfileEventListeners.hasRun = true;
+    
+    const profileAvatar = document.getElementById('profile-avatar');
+    const profileName = document.getElementById('profile-name');
+    const profileDescription = document.getElementById('description');
+    const saveButton = document.getElementById('save-profile-btn');
+    const changeAvatarButton = document.getElementById('change-avatar-btn');
+    
+    // 添加更换头像按钮点击事件
+    if (changeAvatarButton) {
+        changeAvatarButton.addEventListener('click', async () => {
+            try {
+                // 方式1：选择本地图片
+                const base64 = await DB.selectAndConvertImage();
+                if (base64) {
+                    profileAvatar.src = base64;
+                }
+            } catch (error) {
+                console.error('选择头像失败:', error);
+                // 方式2：生成随机颜色头像作为备选
+                const randomAvatar = DB.generateColorAvatar(profileName.value || '');
+                profileAvatar.src = randomAvatar;
+            }
+        });
+    }
+
+    // 添加保存按钮点击事件
+    if (saveButton) {
+        saveButton.addEventListener('click', async () => {
+            try {
+                const name = profileName.value.trim();
+                const description = profileDescription.value.trim();
+
+                // 保存到数据库
+                await DB.saveProfile({
+                    name: name,
+                    description: description,
+                    avatar: profileAvatar.src || null,
+                    updated: new Date()
+                });
+
+                alert('个人资料已保存');
+            } catch (error) {
+                console.error('保存个人资料失败:', error);
+                alert('保存失败: ' + error.message);
+            }
+        });
     }
 }
 
@@ -264,10 +275,13 @@ if (tab === 'persona') {
 document.addEventListener('DOMContentLoaded', () => {
     // 初始化数据库
     DB.init().then(() => {
-        // 加载persona列表
+        // 加载数据
         loadPersonaList();
         loadChatList();
         loadProfile();
+        
+        // 设置Profile页面的事件监听器 - 只执行一次
+        setupProfileEventListeners();
     });
 
     // 为添加按钮添加点击事件
@@ -278,12 +292,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 页面切换时只加载数据，不重新绑定事件
     persona_btn.addEventListener('click', () => {
         loadPersonaList();
     });
+    
     chat_btn.addEventListener('click', () => {
         loadChatList();
     });
+    
     profile_btn.addEventListener('click', () => {
         loadProfile();
     });
