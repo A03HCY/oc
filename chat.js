@@ -6,6 +6,7 @@ let chat_title = document.getElementById("chat-title");
 const apiKey = 'sk-dMSLn5cCYOhGa7bfidDgHbPkwHQROmb786vWg6aC49Mu6un5';
 const apiEndpoint = 'https://yunwu.ai/v1';
 
+// 初始化FetchMind实例，后续会根据聊天选择的模型更新
 const mind = new FetchMind('deepseek-v3', apiKey, apiEndpoint);
 
 // 当前聊天ID
@@ -20,7 +21,7 @@ let userProfile = null;
 // 返回首页
 function back_home() {
     window.location.href = './home.html?tab=chat';
-}   
+}
 
 // 加载system.md系统提示词
 async function loadSystemPrompt() {
@@ -70,6 +71,13 @@ async function loadChat() {
         // 设置页面标题
         chat_title.textContent = chat.title;
         
+        // 设置所选模型
+        if (chat.model) {
+            // 更新FetchMind实例以使用选定的模型
+            mind.set_model(chat.model);
+            console.log(`使用模型: ${chat.model}`);
+        }
+        
         // 加载用户资料
         userProfile = await DB.getProfile();
         
@@ -100,17 +108,17 @@ async function loadChat() {
         
         // 清空容器
         container.innerHTML = '';
+        const personaAvatar = getPersonaAvatar();
+        const userAvatar = getUserAvatar();
         
         // 加载历史消息
         if (chat.history && chat.history.length > 0) {
             chat.history.forEach(msg => {
                 if (msg.role === 'user') {
                     // 使用用户头像
-                    const userAvatar = getUserAvatar();
                     container.innerHTML += create_chat(msg.content, "right", userAvatar);
                 } else if (msg.role === 'assistant') {
                     // 使用persona头像
-                    const personaAvatar = getPersonaAvatar();
                     container.innerHTML += create_chat(
                         msg.content,
                         "left",

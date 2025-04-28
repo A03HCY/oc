@@ -47,20 +47,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
     
-    // 从数据库加载model列表
+    // 加载模型列表
     async function loadModelList() {
         try {
             // 清空当前选项
             modeSelector.innerHTML = '';
             
-            // 获取所有model
-            const models = await DB.getModels();
+            // 尝试从model.json加载模型配置
+            try {
+                const response = await fetch('./model.json');
+                if (response.ok) {
+                    const models = await response.json();
+                    
+                    // 添加从JSON加载的模型选项
+                    for (const [name, id] of Object.entries(models)) {
+                        const item = document.createElement('s-picker-item');
+                        item.value = id;
+                        item.textContent = name;
+                        modeSelector.appendChild(item);
+                    }
+                    
+                    // 如果有模型，默认选择第一个
+                    if (Object.keys(models).length > 0) {
+                        modeSelector.value = Object.values(models)[0];
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('加载model.json失败:', error);
+            }
             
-            if (models.length === 0) {
+            // 如果从JSON加载失败，从数据库加载或使用默认模型
+            const storedModels = await DB.getModels();
+            
+            if (storedModels.length === 0) {
                 // 如果没有model，添加一些默认选项
                 const defaultModels = [
-                    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
-                    { id: 'gpt-4', name: 'GPT-4' }
+                    { id: 'deepseek-v3', name: 'DeepSeek-V3' },
+                    { id: 'gemini-1.5-pro', name: 'Gemini Pro' },
+                    { id: 'qwen-max-latest', name: 'Qwen Max' }
                 ];
                 
                 defaultModels.forEach(model => {
@@ -77,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 modeSelector.value = defaultModels[0].id;
             } else {
                 // 添加model选项
-                models.forEach(model => {
+                storedModels.forEach(model => {
                     const item = document.createElement('s-picker-item');
                     item.value = model.id;
                     item.textContent = model.name;
@@ -85,8 +110,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 
                 // 默认选择第一个
-                if (models.length > 0) {
-                    modeSelector.value = models[0].id;
+                if (storedModels.length > 0) {
+                    modeSelector.value = storedModels[0].id;
                 }
             }
         } catch (error) {
