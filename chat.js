@@ -118,12 +118,31 @@ async function loadChat() {
                     // 使用用户头像
                     container.innerHTML += create_chat(msg.content, "right", userAvatar);
                 } else if (msg.role === 'assistant') {
-                    // 使用persona头像
-                    container.innerHTML += create_chat(
-                        msg.content,
-                        "left",
-                        personaAvatar
-                    );
+                    // 检查是否是音乐消息
+                    if (msg.type === 'music') {
+                        // 解析音乐内容
+                        const lines = msg.content.split('\n');
+                        const title = lines[0].replace('已生成音乐：', '');
+                        const audioUrls = lines.slice(1).filter(line => line.startsWith('音频链接：'));
+                        
+                        // 构建音乐展示内容
+                        const musicContent = audioUrls.map(url => `
+                            <div style="margin-bottom: 16px;">
+                                <h3>${title}</h3>
+                                <div style="margin: 8px 0;">
+                                    <audio controls style="width: 100%;">
+                                        <source src="${url.replace('音频链接：', '')}" type="audio/mpeg">
+                                        您的浏览器不支持音频播放
+                                    </audio>
+                                </div>
+                            </div>
+                        `).join('');
+                        
+                        container.innerHTML += create_chat(musicContent, "left", personaAvatar);
+                    } else {
+                        // 普通文本消息
+                        container.innerHTML += create_chat(msg.content, "left", personaAvatar);
+                    }
                 }
                 
                 // 重新添加到mind的记忆中，用于上下文
@@ -196,10 +215,14 @@ async function saveChat(userMessage, assistantMessage) {
         }
         
         if (assistantMessage) {
+            // 检查是否是音乐生成消息
+            const isMusicGeneration = userMessage && userMessage.startsWith('生成音乐：');
+            
             currentChat.history.push({
                 role: 'assistant',
                 content: assistantMessage,
-                timestamp: new Date()
+                timestamp: new Date(),
+                type: isMusicGeneration ? 'music' : 'text'  // 添加消息类型
             });
         }
         
@@ -269,6 +292,83 @@ function create_chat(content, position, avatar = {
             `
     }
     return html;
+}
+
+// 创建音乐
+async function create_music(title, tags, instrumental=true, lyrics="") {
+    console.log(title, tags, instrumental, lyrics);
+    try {
+        // 添加生成音乐的提示消息
+        const loadingId = "loading-" + Date.now();
+        const personaAvatar = getPersonaAvatar();
+        container.innerHTML += create_chat(
+            `正在生成音乐：${title}<br>风格：${tags}<br>${instrumental ? '纯音乐' : '带歌词'}`,
+            "left",
+            personaAvatar,
+            loadingId
+        );
+
+        // 处理标签格式
+        const formattedTags = tags.split(',').map(tag => tag.trim()).join(', ');
+
+        const result = await generateMusic({
+            prompt: lyrics,
+            tags: formattedTags,
+            mv: "chirp-v4",
+            make_instrumental: instrumental,
+            title: title
+        });
+
+        // 移除加载提示
+        const loadingElement = document.getElementById(loadingId);
+        if (loadingElement) {
+            loadingElement.parentElement.remove();
+        }
+
+        // 展示生成结果
+        if (result && result.length > 0) {
+            const musicId = "music-" + Date.now();
+            const musicContent = result.map(item => `
+                <div style="margin-bottom: 16px;">
+                    <div style="margin: 8px 0;">
+                        <audio controls style="width: 100%;">
+                            <source src="${item.audio_url}" type="audio/mpeg">
+                            您的浏览器不支持音频播放
+                        </audio>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML += create_chat(
+                musicContent,
+                "left",
+                personaAvatar,
+                musicId
+            );
+
+            // 保存到聊天记录
+            await saveChat(
+                `生成音乐：${title}`,
+                `已生成音乐：${title}\n${result.map(item => `音频链接：${item.audio_url}`).join('\n')}`
+            );
+        }
+
+        return result;
+    } catch (error) {
+        console.error('执行失败:', error);
+        // 显示错误消息
+        const errorId = "error-" + Date.now();
+        const personaAvatar = getPersonaAvatar();
+        container.innerHTML += create_chat(
+            `生成音乐失败: ${error.message}`,
+            "left",
+            personaAvatar,
+            errorId
+        );
+        throw error;
+    } finally {
+        container.scrollTop = container.scrollHeight;
+    }
 }
 
 async function chat() {
@@ -373,6 +473,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         menuItems[0].textContent = '删除聊天';
         menuItems[0].addEventListener('click', deleteChat);
     }
+    
+    // 设置回调函数
+    mind.on_calling((func, args) => {
+        console.log('正在调用函数:', func.name);
+        console.log('参数:', args);
+    });
+
+    mind.on_called((func, result) => {
+        console.log('函数调用完成:', func.name);
+        console.log('结果:', result);
+    });
+
+    // 注册音乐生成工具
+    mind.add_tool(create_music, {
+        description: '生成音乐',
+        parameters: {
+            type: 'object',
+            properties: {
+                title: {
+                    type: 'string',
+                    description: '音乐标题'
+                },
+                tags: {
+                    type: 'string',
+                    description: '音乐风格，用逗号分隔'
+                },
+                instrumental: {
+                    type: 'boolean',
+                    description: '是否生成纯音乐'
+                },
+                lyrics: {
+                    type: 'string',
+                    description: '歌词内容'
+                }
+            },
+            required: ['title', 'tags']
+        }
+    });
 });
 
 send_btn.addEventListener("click", chat);

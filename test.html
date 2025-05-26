@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>FetchMind Test</title>
+</head>
+<body>
+    <div id="output"></div>
+    <script src="./mind.js"></script>
+    <script src="./suno.js"></script>
+    <script>
+        const apiKey = 'sk-dMSLn5cCYOhGa7bfidDgHbPkwHQROmb786vWg6aC49Mu6un5';
+        const apiEndpoint = 'https://yunwu.ai/v1';
+
+        const mind = new FetchMind('deepseek-v3', apiKey, apiEndpoint);
+
+        // 定义一些工具函数
+        /**
+         * 获取指定城市的天气信息
+         * @param {string} city - 城市名称
+         * @returns {string} 天气信息，格式为"天气状况，温度"
+         */
+        function get_weather(city) {
+            const weatherData = {
+                '北京': '晴朗，25°C',
+                '上海': '多云，23°C',
+                '广州': '雨，28°C',
+                '深圳': '阴，27°C'
+            };
+            return weatherData[city] || `无法获取${city}的天气信息`;
+        }
+
+        /**
+         * 计算两个数字的和
+         * @param {number} a - 第一个数字
+         * @param {number} b - 第二个数字
+         * @returns {number} 两数之和
+         */
+        function add(a, b) {
+            return a + b;
+        }
+
+        /**
+         * 获取当前时间
+         * @returns {string} 当前时间的本地化字符串表示
+         */
+        function get_current_time() {
+            return new Date().toLocaleString();
+        }
+
+        // 注册工具函数
+        mind.add_tool(get_weather, {
+            description: '获取指定城市的天气信息',
+            parameters: {
+                type: 'object',
+                properties: {
+                    city: {
+                        type: 'string',
+                        description: '城市名称'
+                    }
+                },
+                required: ['city']
+            }
+        });
+
+        mind.add_tool(add, {
+            description: '计算两个数字的和',
+            parameters: {
+                type: 'object',
+                properties: {
+                    a: {
+                        type: 'number',
+                        description: '第一个数字'
+                    },
+                    b: {
+                        type: 'number',
+                        description: '第二个数字'
+                    }
+                },
+                required: ['a', 'b']
+            }
+        });
+
+        mind.add_tool(get_current_time, {
+            description: '获取当前时间',
+            parameters: {
+                type: 'object',
+                properties: {},
+                required: []
+            }
+        });
+
+        // 设置回调函数
+        mind.on_calling((func, args) => {
+            console.log('正在调用函数:', func.name);
+            console.log('参数:', args);
+        });
+
+        mind.on_called((func, result) => {
+            console.log('函数调用完成:', func.name);
+            console.log('结果:', result);
+        });
+
+        // 测试自动处理流式响应
+        async function testAutoQuest() {
+            console.log('\n测试自动处理流式响应:');
+            mind.add_memory('user', '你好，请告诉我北京的天气');
+            try {
+                await mind.auto_quest(
+                    (chunk) => {
+                        console.log('收到数据块:', chunk);
+                        document.getElementById('output').innerHTML += `<div>${JSON.stringify(chunk)}</div>`;
+                    },
+                    {
+                        onStart: () => console.log('开始请求'),
+                        onEnd: (fullContent) => {
+                            console.log('请求完成，完整内容:', fullContent);
+                            document.getElementById('output').innerHTML += `<div>完成: ${fullContent}</div>`;
+                        },
+                        onError: (error) => {
+                            console.error('发生错误:', error);
+                            document.getElementById('output').innerHTML += `<div style="color: red">错误: ${error}</div>`;
+                        }
+                    }
+                );
+            } catch (error) {
+                console.error('请求失败:', error);
+            }
+        }
+
+        // 运行所有测试
+        async function runTests() {
+            // 添加一些系统提示
+            mind.set('system', '你是一个有用的助手，可以使用工具函数来帮助用户。');
+            
+            // 显示函数信息
+            const functions = mind.functions;
+            console.log('注册的函数:', functions);
+            document.getElementById('output').innerHTML += `<pre>${JSON.stringify(functions, null, 2)}</pre>`;
+            
+            // 运行测试
+            await testAutoQuest();
+        }
+
+        // 执行测试
+        runTests().catch(error => {
+            console.error('测试执行失败:', error);
+            document.getElementById('output').innerHTML += `<div style="color: red">测试执行失败: ${error}</div>`;
+        });
+    </script>
+</body>
+</html>

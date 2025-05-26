@@ -14,6 +14,8 @@ class FetchMind {
     this.endpoint = endpoint || 'https://api.openai.com/v1';
 
     this._memories = [];
+    this._functions = {};  // 存储函数元数据
+    this._map = {};       // 存储函数映射
 
     this._predefined = {
       'system': '',
@@ -278,6 +280,334 @@ class FetchMind {
   }
 
   /**
+   * 注册一个函数
+   * @param {Function} func - 要注册的函数
+   * @returns {Function} - 包装后的函数
+   */
+  identify(func) {
+    const funcName = func.name;
+    
+    // 获取函数签名信息
+    const signature = this._getFunctionSignature(func);
+    
+    // 获取函数文档字符串
+    const doc = func.toString().match(/\/\*\*([\s\S]*?)\*\//)?.[1] || '';
+    
+    // 提取函数描述和参数信息
+    const { description, parameters } = this._parseFunctionDoc(doc, signature);
+    
+    // 存储API格式的函数信息
+    this._functions[funcName] = {
+      type: 'function',
+      name: funcName,
+      description: description,
+      parameters: parameters,
+    };
+    
+    this._map[funcName] = {
+      original_function: func,
+    };
+    
+    // 创建包装函数
+    const wrapper = function(...args) {
+      return func.apply(this, args);
+    };
+    
+    // 使用 Object.defineProperty 设置函数名称
+    Object.defineProperty(wrapper, 'name', {
+      value: funcName,
+      configurable: true
+    });
+    
+    // 复制原函数的其他属性
+    Object.getOwnPropertyNames(func).forEach(prop => {
+      if (prop !== 'name' && prop !== 'length' && prop !== 'prototype') {
+        try {
+          Object.defineProperty(wrapper, prop, Object.getOwnPropertyDescriptor(func, prop));
+        } catch (e) {
+          console.warn(`无法复制属性 ${prop}:`, e);
+        }
+      }
+    });
+    
+    return wrapper;
+  }
+
+  /**
+   * 获取函数签名信息
+   * @private
+   * @param {Function} func - 要分析的函数
+   * @returns {Object} - 函数签名信息
+   */
+  _getFunctionSignature(func) {
+    const funcStr = func.toString();
+    const paramsMatch = funcStr.match(/\(([^)]*)\)/);
+    const params = paramsMatch ? paramsMatch[1].split(',').map(p => p.trim()) : [];
+    
+    return {
+      params,
+      hasRest: funcStr.includes('...'),
+    };
+  }
+
+  /**
+   * 解析函数文档
+   * @private
+   * @param {string} doc - 函数文档字符串
+   * @param {Object} signature - 函数签名信息
+   * @returns {Object} - 解析后的文档信息
+   */
+  _parseFunctionDoc(doc, signature) {
+    let description = '';
+    const parameters = {
+      type: 'object',
+      properties: {},
+      required: []
+    };
+    
+    // 清理文档字符串
+    doc = doc.replace(/^\s*\*\s*/gm, '').trim();
+    
+    // 提取主要描述（@param 之前的内容）
+    const mainDescMatch = doc.match(/(.*?)(?=@param|@returns|$)/s);
+    if (mainDescMatch) {
+      description = mainDescMatch[1].trim();
+    }
+    
+    // 提取参数信息
+    const paramRegex = /@param\s+{([^}]+)}\s+(\w+)\s+(.*?)(?=@param|@returns|$)/gs;
+    let paramMatch;
+    
+    while ((paramMatch = paramRegex.exec(doc)) !== null) {
+      const [_, type, name, desc] = paramMatch;
+      parameters.properties[name] = {
+        type: this._convertType(type),
+        description: desc.trim()
+      };
+      
+      // 如果参数没有默认值，则标记为必需
+      if (!signature.params.find(p => p.startsWith(name + '='))) {
+        parameters.required.push(name);
+      }
+    }
+    
+    // 提取返回值信息
+    const returnRegex = /@returns\s+{([^}]+)}\s+(.*?)(?=@param|$)/s;
+    const returnMatch = returnRegex.exec(doc);
+    if (returnMatch) {
+      const [_, type, desc] = returnMatch;
+      parameters.properties['return'] = {
+        type: this._convertType(type),
+        description: desc.trim()
+      };
+    }
+    
+    return { description, parameters };
+  }
+
+  /**
+   * 转换类型
+   * @private
+   * @param {string} type - 类型字符串
+   * @returns {string} - 转换后的类型
+   */
+  _convertType(type) {
+    const typeMap = {
+      'string': 'string',
+      'number': 'number',
+      'boolean': 'boolean',
+      'object': 'object',
+      'array': 'array',
+      'function': 'object',
+      'any': 'string',
+      'void': 'null',
+      'null': 'null',
+      'undefined': 'null',
+      'int': 'integer',
+      'float': 'number',
+      'double': 'number',
+      'long': 'integer',
+      'short': 'integer',
+      'byte': 'integer',
+      'char': 'string',
+      'date': 'string',
+      'datetime': 'string',
+      'time': 'string',
+      'timestamp': 'string',
+      'json': 'object',
+      'promise': 'object',
+      'async': 'object'
+    };
+    
+    // 处理数组类型
+    if (type.endsWith('[]')) {
+      return 'array';
+    }
+    
+    // 处理联合类型
+    if (type.includes('|')) {
+      const types = type.split('|').map(t => t.trim());
+      const convertedTypes = types.map(t => this._convertType(t));
+      return convertedTypes[0]; // 返回第一个类型作为主要类型
+    }
+    
+    // 处理泛型类型
+    if (type.includes('<')) {
+      const baseType = type.split('<')[0].trim();
+      return this._convertType(baseType);
+    }
+    
+    return typeMap[type.toLowerCase()] || 'string';
+  }
+
+  /**
+   * 获取函数列表
+   * @returns {Array} - 函数列表
+   */
+  get functions() {
+    return Object.values(this._functions).map(func => ({
+      type: 'function',
+      function: func
+    }));
+  }
+
+  /**
+   * 添加工具函数
+   * @param {Function} func - 要添加的函数
+   * @param {Object} [options] - 函数配置选项
+   * @param {string} [options.description] - 函数描述
+   * @param {Object} [options.parameters] - 函数参数配置
+   * @param {Object} [options.parameters.properties] - 参数属性
+   * @param {string[]} [options.parameters.required] - 必需参数列表
+   */
+  add_tool(func, options = {}) {
+    const funcName = func.name;
+    
+    // 存储API格式的函数信息
+    this._functions[funcName] = {
+      type: 'function',
+      name: funcName,
+      description: options.description || '',
+      parameters: options.parameters || {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+    };
+    
+    this._map[funcName] = {
+      original_function: func,
+    };
+    
+    // 创建包装函数
+    const wrapper = function(...args) {
+      return func.apply(this, args);
+    };
+    
+    // 使用 Object.defineProperty 设置函数名称
+    Object.defineProperty(wrapper, 'name', {
+      value: funcName,
+      configurable: true
+    });
+    
+    return wrapper;
+  }
+
+  /**
+   * 设置函数调用前的回调
+   * @param {Function} callback - 回调函数
+   */
+  on_calling(callback) {
+    this._on_calling = callback;
+  }
+
+  /**
+   * 设置函数调用后的回调
+   * @param {Function} callback - 回调函数
+   */
+  on_called(callback) {
+    this._on_called = callback;
+  }
+
+  /**
+   * 设置准备调用前的回调
+   * @param {Function} callback - 回调函数
+   */
+  on_preparing(callback) {
+    this._on_preparing = callback;
+  }
+
+  /**
+   * 调用函数
+   * @param {string} functionName - 函数名称
+   * @param {Object} args - 函数参数
+   * @returns {any} - 函数调用结果
+   */
+  call(functionName, args) {
+    if (!this._map[functionName]) {
+      throw new Error(`函数 '${functionName}' 未注册`);
+    }
+    
+    const func = this._map[functionName].original_function;
+    const funcInfo = this._functions[functionName];
+    
+    // 调用前的回调
+    if (this._on_calling) {
+      try {
+        const newFunc = this._on_calling(func, args);
+        if (typeof newFunc === 'function') {
+          func = newFunc;
+        }
+      } catch (e) {
+        console.warn('调用前回调执行失败:', e);
+      }
+    }
+    
+    let result = null;
+    try {
+      // 按照函数定义的参数顺序传递参数
+      const orderedArgs = funcInfo.parameters.properties ? 
+        Object.keys(funcInfo.parameters.properties).map(paramName => args[paramName]) :
+        Object.values(args);
+      
+      result = func(...orderedArgs);
+    } catch (e) {
+      throw new Error(`调用函数 '${functionName}' 时出错: ${e.message}`);
+    } finally {
+      // 调用后的回调
+      if (this._on_called) {
+        try {
+          this._on_called(func, result);
+        } catch (e) {
+          console.warn('调用后回调执行失败:', e);
+        }
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * 处理函数调用
+   * @private
+   * @param {Array} toolCalls - 工具调用列表
+   * @returns {Array} - 处理结果
+   */
+  _handleToolCalls(toolCalls) {
+    return toolCalls.map(call => {
+      const functionName = call.function.name;
+      const args = JSON.parse(call.function.arguments);
+      
+      return {
+        tool_call_id: call.id,
+        role: 'tool',
+        name: functionName,
+        content: String(this.call(functionName, args))
+      };
+    });
+  }
+
+  /**
    * 发送阻塞请求
    * @private
    * @returns {Promise<Object>} - 响应结果
@@ -289,6 +619,8 @@ class FetchMind {
         model: this.model,
         messages: this.build_memory,
         temperature: 0.7,
+        tools: this.functions,
+        tool_choice: "auto"
       };
 
       const response = await fetch(url, {
@@ -312,14 +644,25 @@ class FetchMind {
       }
 
       const messageData = data.choices[0].message;
-      this._memories.push({
-        role: messageData.role,
-        content: messageData.content
-      });
+      this._memories.push(messageData);
+
+      // 处理函数调用
+      if (messageData.tool_calls) {
+        const toolResults = this._handleToolCalls(messageData.tool_calls);
+        this._memories.push(...toolResults);
+        
+        // 递归处理后续响应
+        const nextResponse = await this.__request_block();
+        return {
+          type: 'block',
+          reasoning: [],
+          content: [messageData.content, ...nextResponse.content]
+        };
+      }
 
       return {
         type: 'block',
-        reasoning: [], // API不直接支持reasoning_content
+        reasoning: [],
         content: [messageData.content]
       };
     } catch (error) {
@@ -331,7 +674,7 @@ class FetchMind {
   /**
    * 发送流式请求
    * @private
-   * @param {boolean} reasoning - 是否包含推理内容（在基础fetch实现中不支持，仅保留接口兼容性）
+   * @param {boolean} reasoning - 是否包含推理内容
    * @returns {AsyncGenerator} - 异步生成器
    */
   async *__request_stream(reasoning = true) {
@@ -342,6 +685,8 @@ class FetchMind {
         messages: this.build_memory,
         temperature: 0.7,
         stream: true,
+        tools: this.functions,
+        tool_choice: "auto"
       };
 
       const response = await fetch(url, {
@@ -366,23 +711,21 @@ class FetchMind {
       const decoder = new TextDecoder('utf-8');
       let content = '';
       let partialLine = '';
+      let toolCalls = [];
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        // 处理接收到的数据块
         const chunk = decoder.decode(value, { stream: true });
         partialLine += chunk;
 
-        // SSE格式的数据以两个换行符分隔，先按行分割
         const lines = partialLine.split('\n\n');
-        partialLine = lines.pop() || ''; // 最后一行可能不完整，保留
+        partialLine = lines.pop() || '';
 
         for (const line of lines) {
-          if (!line.trim() || line.startsWith(':')) continue; // 忽略空行和注释
+          if (!line.trim() || line.startsWith(':')) continue;
 
-          // 格式为 "data: {...JSON数据...}"
           if (line.startsWith('data: ')) {
             const jsonStr = line.substring(6);
             if (jsonStr === '[DONE]') continue;
@@ -399,6 +742,29 @@ class FetchMind {
                     content: delta.content
                   };
                 }
+
+                if (delta.tool_calls) {
+                  for (const toolCall of delta.tool_calls) {
+                    const index = toolCall.index;
+                    if (!toolCalls[index]) {
+                      toolCalls[index] = {
+                        id: '',
+                        type: 'function',
+                        function: { name: '', arguments: '' }
+                      };
+                    }
+
+                    if (toolCall.id) {
+                      toolCalls[index].id += toolCall.id;
+                    }
+                    if (toolCall.function.name) {
+                      toolCalls[index].function.name += toolCall.function.name;
+                    }
+                    if (toolCall.function.arguments) {
+                      toolCalls[index].function.arguments += toolCall.function.arguments;
+                    }
+                  }
+                }
               }
             } catch (e) {
               console.warn('解析流式响应失败:', e);
@@ -407,8 +773,15 @@ class FetchMind {
         }
       }
 
-      // 将最终的完整回复添加到记忆中
-      if (content) {
+      // 处理函数调用
+      if (toolCalls.length > 0) {
+        this.add_memory('assistant', content, { tool_calls: toolCalls });
+        const toolResults = this._handleToolCalls(toolCalls);
+        this._memories.push(...toolResults);
+        
+        // 递归处理后续响应
+        yield* this.__request_stream(reasoning);
+      } else {
         this.add_memory('assistant', content);
       }
     } catch (error) {
