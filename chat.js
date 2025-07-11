@@ -37,6 +37,19 @@ async function loadSystemPrompt() {
     }
 }
 
+async function loadExtenPrompt() {
+    try {
+        const response = await fetch('./extension.md');
+        if (!response.ok) {
+            throw new Error(`加载system.md失败: ${response.status}`);
+        }
+        const systemPrompt = await response.text();
+        mind.set('system', systemPrompt);
+    } catch (error) {
+        console.error('加载系统提示词失败:', error);
+    }
+}
+
 // 加载聊天记录和相关数据
 async function loadChat() {
     try {
@@ -44,6 +57,7 @@ async function loadChat() {
         
         // 加载系统提示词
         await loadSystemPrompt();
+        await loadExtenPrompt();
         
         // 从URL获取聊天ID
         const urlParams = new URLSearchParams(window.location.search);
