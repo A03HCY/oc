@@ -83,8 +83,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (storedModels.length === 0) {
                 // 如果没有model，添加一些默认选项
                 const defaultModels = [
+{ id: 'gemini-2.5-flash', name: 'Gemini Flash' },
                     { id: 'deepseek-v3', name: 'DeepSeek-V3' },
-                    { id: 'gemini-1.5-pro', name: 'Gemini Pro' },
+                    { id: 'gemini-2.5-pro', name: 'Gemini Pro' },
                     { id: 'qwen-max-latest', name: 'Qwen Max' }
                 ];
                 
