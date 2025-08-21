@@ -541,14 +541,14 @@ class FetchMind {
    * 调用函数
    * @param {string} functionName - 函数名称
    * @param {Object} args - 函数参数
-   * @returns {any} - 函数调用结果
+   * @returns {Promise<any>} - 函数调用结果
    */
-  call(functionName, args) {
+  async call(functionName, args) {
     if (!this._map[functionName]) {
       throw new Error(`函数 '${functionName}' 未注册`);
     }
     
-    const func = this._map[functionName].original_function;
+    let func = this._map[functionName].original_function;
     const funcInfo = this._functions[functionName];
     
     // 调用前的回调
@@ -570,7 +570,7 @@ class FetchMind {
         Object.keys(funcInfo.parameters.properties).map(paramName => args[paramName]) :
         Object.values(args);
       
-      result = func(...orderedArgs);
+      result = await func(...orderedArgs);
     } catch (e) {
       throw new Error(`调用函数 '${functionName}' 时出错: ${e.message}`);
     } finally {
@@ -591,20 +591,24 @@ class FetchMind {
    * 处理函数调用
    * @private
    * @param {Array} toolCalls - 工具调用列表
-   * @returns {Array} - 处理结果
+   * @returns {Promise<Array>} - 处理结果
    */
-  _handleToolCalls(toolCalls) {
-    return toolCalls.map(call => {
-      const functionName = call.function.name;
-      const args = JSON.parse(call.function.arguments);
-      
-      return {
-        tool_call_id: call.id,
-        role: 'tool',
-        name: functionName,
-        content: String(this.call(functionName, args))
-      };
-    });
+  async _handleToolCalls(toolCalls) {
+    const results = [];
+    for (const call of toolCalls) {
+        const functionName = call.function.name;
+        const args = JSON.parse(call.function.arguments);
+        
+        const content = await this.call(functionName, args);
+
+        results.push({
+            tool_call_id: call.id,
+            role: 'tool',
+            name: functionName,
+            content: String(content)
+        });
+    }
+    return results;
   }
 
   /**
@@ -648,7 +652,7 @@ class FetchMind {
 
       // 处理函数调用
       if (messageData.tool_calls) {
-        const toolResults = this._handleToolCalls(messageData.tool_calls);
+        const toolResults = await this._handleToolCalls(messageData.tool_calls);
         this._memories.push(...toolResults);
         
         // 递归处理后续响应
@@ -776,7 +780,7 @@ class FetchMind {
       // 处理函数调用
       if (toolCalls.length > 0) {
         this.add_memory('assistant', content, { tool_calls: toolCalls });
-        const toolResults = this._handleToolCalls(toolCalls);
+        const toolResults = await this._handleToolCalls(toolCalls);
         this._memories.push(...toolResults);
         
         // 递归处理后续响应
@@ -888,4 +892,4 @@ if (typeof window !== 'undefined') {
 // 同时保留 CommonJS 模块导出，以便在 Node.js 环境中使用
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { FetchMind };
-} 
+}
