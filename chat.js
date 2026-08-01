@@ -3,11 +3,11 @@ let message = document.getElementById("msg");
 let container = document.getElementById("main");
 let chat_title = document.getElementById("chat-title");
 
-const apiKey = 'sk-dMSLn5cCYOhGa7bfidDgHbPkwHQROmb786vWg6aC49Mu6un5';
-const apiEndpoint = 'https://yunwu.ai/v1';
+const apiKey = 'sk-84dfc71152ec4e92b76bc35e933c3f3d';
+const apiEndpoint = 'https://api.deepseek.com/v1';
 
 // 初始化FetchMind实例，后续会根据聊天选择的模型更新
-const mind = new FetchMind('deepseek-v3', apiKey, apiEndpoint);
+const mind = new FetchMind('deepseek-v4-flash', apiKey, apiEndpoint);
 
 // 当前聊天ID
 let currentChatId = null;
