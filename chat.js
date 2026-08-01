@@ -396,45 +396,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('函数调用完成:', func.name);
         console.log('结果:', result);
     });
-
-    // 注册天气和地理位置工具
-    mind.add_tool(CMA.req_now, {
-        description: '根据城市ID获取现在的天气信息. 中国气象局.',
-        parameters: {
-            type: 'object',
-            properties: {
-                city_id: {
-                    type: 'string',
-                    description: '城市数字ID'
-                }
-            },
-            required: ['city_id']
-        }
-    });
-
-    mind.add_tool(CMA.req_city_id, {
-        description: '根据城市名称、缩写、拼音请求对应的城市ID列表. 中国气象局.',
-        parameters: {
-            type: 'object',
-            properties: {
-                name: {
-                    type: 'string',
-                    description: '要查询的城市名称'
-                }
-            },
-            required: ['name']
-        }
-    });
-
-    mind.add_tool(CMA.req_alarm, {
-        description: '获取天气预警信息. 中国气象局.',
-        parameters: {}
-    });
-
-    mind.add_tool(locate_geo, {
-        description: '获取用户的大致地理位置.',
-        parameters: {}
-    });
 });
 
 send_btn.addEventListener("click", chat);
