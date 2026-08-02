@@ -3,8 +3,8 @@ let message = document.getElementById("msg");
 let container = document.getElementById("main");
 let chat_title = document.getElementById("chat-title");
 
-const apiKey = 'sk-84dfc71152ec4e92b76bc35e933c3f3d';
-const apiEndpoint = 'https://api.deepseek.com/v1';
+const apiKey = '';
+const apiEndpoint = '';
 
 // 初始化FetchMind实例，后续会根据聊天选择的模型更新
 const mind = new FetchMind('deepseek-v4-flash', apiKey, apiEndpoint);
